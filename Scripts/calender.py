@@ -15,55 +15,62 @@ class CalendarApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("My Task Calendar")
         self.setGeometry(300, 300, 800, 500)
-        
+    
         # Main widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
-        
+    
         # Calendar widget
         self.calendar = QCalendarWidget()
         self.calendar.setGridVisible(True)
         self.calendar.clicked.connect(self.show_tasks_for_date)
-        
+    
         # Task list widget
         self.task_list = QListWidget()
-        
-        # Task entry and add button
+    
+        # Task entry and buttons
         task_entry_layout = QVBoxLayout()
         self.task_entry = QLineEdit()
         self.task_entry.setPlaceholderText("Enter new task...")
         self.important_checkbox = QCheckBox("Important")
+    
+        # Button layout - this was missing from your layout structure
         button_layout = QHBoxLayout()
-        self.add_multi_date_button = QPushButton("Add Multi-Date Task")
-        self.add_multi_date_button.clicked.connect(self.add_multi_date_task)
         self.add_task_button = QPushButton("Add Task")
         self.add_task_button.clicked.connect(self.add_task)
-        self.delete_task_button = QPushButton("Delete Selected Task")
-        self.delete_task_button.clicked.connect(self.delete_task)
-
+    
+        self.add_multi_date_button = QPushButton("Add Multi-Date Task")
+        self.add_multi_date_button.clicked.connect(self.add_multi_date_task)
+    
+        # Add buttons to the horizontal layout
         button_layout.addWidget(self.add_task_button)
         button_layout.addWidget(self.add_multi_date_button)
-        
+    
+        # Delete button (separate from the other two)
+        self.delete_task_button = QPushButton("Delete Selected Task")
+        self.delete_task_button.clicked.connect(self.delete_task)
+    
+        # Add everything to the task entry layout in the right order
         task_entry_layout.addWidget(self.task_entry)
         task_entry_layout.addWidget(self.important_checkbox)
-        task_entry_layout.addWidget(self.add_task_button)
+        task_entry_layout.addLayout(button_layout)  # Add the button layout here
         task_entry_layout.addWidget(self.delete_task_button)
-        
+    
         # Task side layout
         task_side_layout = QVBoxLayout()
         task_side_layout.addWidget(self.task_list)
         task_side_layout.addLayout(task_entry_layout)
-        
+    
         # Add widgets to main layout
         main_layout.addWidget(self.calendar, 2)
         main_layout.addLayout(task_side_layout, 1)
-        
+    
         self.load_data()  # Load tasks and important tasks from file
-        
+    
         # Create system tray icon
         self.create_tray_icon()
-        
+    
         # Show today's tasks by default
         self.update_calendar_format()
         self.show_tasks_for_date(QDate.currentDate())
