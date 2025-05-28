@@ -2,11 +2,33 @@
     "tasks": {
         "2025-06-07": [
             "muskie opener"
+        ],
+        "2025-06-21": [
+            "Tommys cabin"
+        ],
+        "2025-06-22": [
+            "lake of the woods"
+        ],
+        "2025-06-23": [
+            "lake of the woods"
+        ],
+        "2025-06-24": [
+            "lake of the woods"
+        ],
+        "2025-06-25": [
+            "Headed home from lake of the woods"
         ]
     },
     "important_tasks": {
         "2025-06-07": [
             "muskie opener"
-        ]
+        ],
+        "2025-06-21": [
+            "Tommys cabin"
+        ],
+        "2025-06-22": [],
+        "2025-06-23": [],
+        "2025-06-24": [],
+        "2025-06-25": []
     }
 }

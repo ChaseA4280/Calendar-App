@@ -5,8 +5,9 @@ from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QCalendarWidget, 
                              QVBoxLayout, QWidget, QSystemTrayIcon, QMenu, 
                              QAction, QListWidget, QHBoxLayout, QPushButton, 
-                             QLineEdit, QInputDialog, QCheckBox)
-from PyQt5.QtCore import QDate, Qt 
+                             QLineEdit, QInputDialog, QCheckBox,QMessageBox, QDialog,
+                             QLabel, QDialogButtonBox)
+from PyQt5.QtCore import QDate, Qt
 from PyQt5.QtGui import QIcon, QBrush, QColor, QTextCharFormat
 
 class CalendarApp(QMainWindow):
@@ -33,10 +34,16 @@ class CalendarApp(QMainWindow):
         self.task_entry = QLineEdit()
         self.task_entry.setPlaceholderText("Enter new task...")
         self.important_checkbox = QCheckBox("Important")
+        button_layout = QHBoxLayout()
+        self.add_multi_date_button = QPushButton("Add Multi-Date Task")
+        self.add_multi_date_button.clicked.connect(self.add_multi_date_task)
         self.add_task_button = QPushButton("Add Task")
         self.add_task_button.clicked.connect(self.add_task)
         self.delete_task_button = QPushButton("Delete Selected Task")
         self.delete_task_button.clicked.connect(self.delete_task)
+
+        button_layout.addWidget(self.add_task_button)
+        button_layout.addWidget(self.add_multi_date_button)
         
         task_entry_layout.addWidget(self.task_entry)
         task_entry_layout.addWidget(self.important_checkbox)
@@ -200,6 +207,11 @@ class CalendarApp(QMainWindow):
     
     
     def add_task(self):
+
+        if hasattr(self, 'multi_date_mode') and self.multi_date_mode:
+            self.finish_multi_date_task()
+            return
+        
         task_text = self.task_entry.text().strip()
         if task_text:
             current_date = self.calendar.selectedDate().toString("yyyy-MM-dd")
@@ -244,6 +256,92 @@ class CalendarApp(QMainWindow):
             QSystemTrayIcon.Information,
             2000
         )
+    
+    def add_multi_date_task(self):
+        task_text = self.task_entry.text().strip()
+        if not task_text:
+            return
+        
+        self.multi_date_mode = True
+        self.selected_dates = set()
+        self.temp_task = task_text
+        self.temp_important = self.important_checkbox.isChecked()
+        
+        # update UI for multi-date task entry
+        self.add_task_button.setText("Finish Multi-Date")
+        self.add_multi_date_button.setText("Cancel Multi-Date")
+        self.task_entry.setEnabled(False)
+        self.important_checkbox.setEnabled(False)
+
+        # change calendar click behavior 
+        self.calendar.clicked.disconnect()
+        self.calendar.clicked.connect(self.multi_date_click)
+
+        self.setWindowTitle("My Task Calendar - Select Multiple Dates (click dates to select)")
+
+    def multi_date_click(self, date):
+        date_str = date.toString("yyyy-MM-dd")
+        if date_str in self.selected_dates:
+            self.selected_dates.remove(date_str)
+        else:
+            self.selected_dates.add(date_str)
+
+        # Highlight selected dates
+        self.update_multi_date_calendar()
+    
+    def update_multi_date_calendar(self):
+        self.update_calendar_format()
+
+        selected_format = QTextCharFormat()
+        selected_format.setBackground(QBrush(QColor(150, 200, 255)))
+
+        for date_str in self.selected_dates:
+            qdate = QDate.fromString(date_str, "yyyy-MM-dd")
+            self.calendar.setDateTextFormat(qdate, selected_format)
+    
+    def finish_multi_date_task(self):
+        if not self.selected_dates:
+            self.cancel_multi_date()
+            return
+
+        for date_str in self.selected_dates:
+            if date_str not in self.tasks:
+                self.tasks[date_str] = []
+                self.important_tasks[date_str] = []
+
+            self.tasks[date_str].append(self.temp_task)
+
+            if self.temp_important:
+                if date_str not in self.important_tasks:
+                    self.important_tasks[date_str] = []
+                self.important_tasks[date_str].append(self.temp_task)
+        self.save_data()
+        self.exit_multi_date_mode()
+
+    def cancel_multi_date(self):
+        self.exit_multi_date_mode()
+    
+    def exit_multi_date_mode(self):
+        self.multi_date_mode = False
+        self.selected_dates = set()
+
+        # reset UI
+        self.add_task_button.setText("Add Task")
+        self.add_multi_date_button.setText("Add Multi-Date Task")
+        self.task_entry.setEnabled(True)
+        self.important_checkbox.setEnabled(True)
+        self.task_entry.clear()
+        self.important_checkbox.setChecked(False)
+
+        # reset calendar click behavior
+        self.calendar.clicked.disconnect()
+        self.calendar.clicked.connect(self.show_tasks_for_date)
+
+        # update display
+        self.update_calendar_format()
+        self.show_tasks_for_date(self.calendar.selectedDate())
+        self.setWindowTitle("My Task Calendar")
+    
 
 if __name__ == "__main__":
     import signal
