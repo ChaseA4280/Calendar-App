@@ -1,4 +1,6 @@
 import sys
+import json
+import os
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QCalendarWidget, 
                              QVBoxLayout, QWidget, QSystemTrayIcon, QMenu, 
@@ -33,10 +35,13 @@ class CalendarApp(QMainWindow):
         self.important_checkbox = QCheckBox("Important")
         self.add_task_button = QPushButton("Add Task")
         self.add_task_button.clicked.connect(self.add_task)
+        self.delete_task_button = QPushButton("Delete Selected Task")
+        self.delete_task_button.clicked.connect(self.delete_task)
         
         task_entry_layout.addWidget(self.task_entry)
         task_entry_layout.addWidget(self.important_checkbox)
         task_entry_layout.addWidget(self.add_task_button)
+        task_entry_layout.addWidget(self.delete_task_button)
         
         # Task side layout
         task_side_layout = QVBoxLayout()
@@ -47,9 +52,7 @@ class CalendarApp(QMainWindow):
         main_layout.addWidget(self.calendar, 2)
         main_layout.addLayout(task_side_layout, 1)
         
-        # Dictionary to store tasks by date
-        self.tasks = {}
-        self.important_tasks = {}
+        self.load_data()  # Load tasks and important tasks from file
         
         # Create system tray icon
         self.create_tray_icon()
@@ -83,6 +86,40 @@ class CalendarApp(QMainWindow):
 
             self.calendar.setDateTextFormat(qdate, format)
     
+    def save_data(self):
+        # Save tasks and important tasks to a JSON file
+        data = {
+            "tasks": self.tasks,
+            "important_tasks": self.important_tasks
+        }
+        # create the date file path
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        data_file = os.path.join(app_dir, "calendar_data.json")
+
+        try:
+            with open(data_file, 'w') as f:
+                json.dump(data, f, indent=4)
+        except Exception as e:
+            print(f"Error saving data: {e}")
+    
+    def load_data(self):
+        # Load tasks and important tasks from a JSON file
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        data_file = os.path.join(app_dir, "calendar_data.json")
+        if os.path.exists(data_file):
+            try: 
+                with open(data_file, 'r') as f:
+                    data = json.load(f)
+                    self.tasks = data.get("tasks", {})
+                    self.important_tasks = data.get("important_tasks", {})
+            except Exception as e:
+                print(f"Error loading data: {e}")
+                self.tasks = {}
+                self.important_tasks = {}
+        else:
+            self.tasks = {}
+            self.important_tasks = {}
+
     def create_tray_icon(self):
         # Create the tray icon (use your own icon file path)
         self.tray_icon = QSystemTrayIcon(self)
@@ -99,18 +136,39 @@ class CalendarApp(QMainWindow):
         hide_action.triggered.connect(self.hide)
         
         quit_action = QAction("Exit", self)
-        quit_action.triggered.connect(QApplication.quit)
+        quit_action.triggered.connect(self.quit_application)
         
         tray_menu.addAction(show_action)
         tray_menu.addAction(hide_action)
         tray_menu.addSeparator()
         tray_menu.addAction(quit_action)
+
         
         self.tray_icon.setContextMenu(tray_menu)
         self.tray_icon.show()
         
         # Double-click on tray icon to show/hide app
         self.tray_icon.activated.connect(self.tray_icon_activated)
+    
+    def quit_application(self):
+        self.save_data()
+        QApplication.quit()
+
+    def delete_task(self):
+        current_item = self.task_list.currentItem()
+        if current_item:
+            task_text = current_item.text().replace("★ ", "")  # Remove star if present
+            current_date = self.calendar.selectedDate().toString("yyyy-MM-dd")
+        
+            if current_date in self.tasks and task_text in self.tasks[current_date]:
+                self.tasks[current_date].remove(task_text)
+                if current_date in self.important_tasks and task_text in self.important_tasks[current_date]:
+                    self.important_tasks[current_date].remove(task_text)
+            
+            self.save_data()  # Save tasks to file
+            
+            self.update_calendar_format()
+            self.show_tasks_for_date(self.calendar.selectedDate())
     
     def tray_icon_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
@@ -145,6 +203,8 @@ class CalendarApp(QMainWindow):
                 if current_date not in self.important_tasks:
                     self.important_tasks[current_date] = []
                 self.important_tasks[current_date].append(task_text)
+
+            self.save_data()  # Save tasks to file
             
             self.update_calendar_format()
             self.show_tasks_for_date(self.calendar.selectedDate())
@@ -161,10 +221,35 @@ class CalendarApp(QMainWindow):
             QSystemTrayIcon.Information,
             2000
         )
+    
+    def closeEvent(self, event):
+        self.save_data()
+
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage(
+            "Calendar App",
+            "Application is still running in the system tray",
+            QSystemTrayIcon.Information,
+            2000
+        )
 
 if __name__ == "__main__":
+    import signal
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)  # Keep running when window is closed
+
     window = CalendarApp()
+    
+    app.aboutToQuit.connect(window.save_data)  # Save data on exit
+
+    def signal_handler(signum, frame):
+        window.save_data()
+        app.quit()
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     window.show()
     sys.exit(app.exec_())
