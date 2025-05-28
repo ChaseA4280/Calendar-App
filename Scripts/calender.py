@@ -67,23 +67,34 @@ class CalendarApp(QMainWindow):
         important_format = QTextCharFormat()
         important_format.setBackground(QBrush(QColor(255, 200, 200))) # Light red background for important tasks
 
+        regular_format = QTextCharFormat()
+        regular_format.setBackground(QBrush(QColor(255, 255, 150))) # Light yellow background for regular tasks
+
         # go through all dates with tasks
         for date_str in self.tasks:
             qdate = QDate.fromString(date_str, "yyyy-MM-dd")
 
             format = QTextCharFormat()
 
-            if date_str in self.important_tasks and self.important_tasks[date_str]:
-                format = important_format
+            has_important = date_str in self.important_tasks and len(self.important_tasks[date_str]) > 0
+
+            has_regular = False
+            if date_str in self.tasks:
+                for task in self.tasks[date_str]:
+                    if date_str not in self.important_tasks or task not in self.important_tasks[date_str]:
+                        has_regular = True
+                        break
             
-            current_format = self.calendar.dateTextFormat(qdate)
+            # set background color based on task types
+            if has_important and has_regular:
+                format = important_format
+            elif has_important:
+                format = important_format
+            elif has_regular:
+                format = regular_format
+            
             task_count = len(self.tasks[date_str])
-
-            if not current_format.isValid():
-                self.calendar.setDateTextFormat(qdate, format)
-
             self.calendar.setToolTip(f"{task_count} task(s)")
-
             self.calendar.setDateTextFormat(qdate, format)
     
     def save_data(self):
