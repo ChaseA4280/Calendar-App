@@ -75,6 +75,13 @@ class CalendarApp(QMainWindow):
         self.update_calendar_format()
         self.show_tasks_for_date(QDate.currentDate())
 
+    def get_data_file_path(self):
+        if getattr(sys, 'frozen', False):
+            app_dir = os.path.dirname(sys.executable)
+        else:
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(app_dir, "calendar_data.json")
+
     def update_calendar_format(self):
         self.calendar.setDateTextFormat(QDate(), QTextCharFormat())
 
@@ -118,19 +125,18 @@ class CalendarApp(QMainWindow):
             "important_tasks": self.important_tasks
         }
         # create the date file path
-        app_dir = os.path.dirname(os.path.abspath(__file__))
-        data_file = os.path.join(app_dir, "calendar_data.json")
+        data_file = self.get_data_file_path()
 
         try:
             with open(data_file, 'w') as f:
                 json.dump(data, f, indent=4)
+            print(f"Data saved to {data_file}")
         except Exception as e:
             print(f"Error saving data: {e}")
     
     def load_data(self):
         # Load tasks and important tasks from a JSON file
-        app_dir = os.path.dirname(os.path.abspath(__file__))
-        data_file = os.path.join(app_dir, "calendar_data.json")
+        data_file = self.get_data_file_path()
         if os.path.exists(data_file):
             try: 
                 with open(data_file, 'r') as f:
@@ -142,6 +148,7 @@ class CalendarApp(QMainWindow):
                 self.tasks = {}
                 self.important_tasks = {}
         else:
+            print(f"No data file found at {data_file}, starting with empty tasks.")
             self.tasks = {}
             self.important_tasks = {}
 
@@ -177,7 +184,7 @@ class CalendarApp(QMainWindow):
     
     def quit_application(self):
         self.save_data()
-        QApplication.quit()
+        QApplication.instance().quit()
 
     def delete_task(self):
         current_item = self.task_list.currentItem()
@@ -241,17 +248,7 @@ class CalendarApp(QMainWindow):
             self.task_entry.clear()
             self.important_checkbox.setChecked(False)
     
-    def closeEvent(self, event):
-        # Hide instead of close when X is clicked
-        event.ignore()
-        self.hide()
-        self.tray_icon.showMessage(
-            "Calendar App",
-            "Application is still running in the system tray",
-            QSystemTrayIcon.Information,
-            2000
-        )
-    
+
     def closeEvent(self, event):
         self.save_data()
 
